@@ -22,6 +22,9 @@ class JarvisContext:
     
     def __init__(self, db_path: str = "jarvis_memory.db", max_session_history: int = 20, default_user: str = "default"):
         self.db_path = Path(db_path)
+        # Ensure directory exists
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        
         self.max_session_history = max_session_history
         self.lock = threading.RLock()
         

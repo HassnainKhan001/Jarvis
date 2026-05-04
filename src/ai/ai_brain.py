@@ -785,24 +785,6 @@ class AIBrainManager:
         
         logger.info("All brain provider histories cleared")
     
-    def is_available(self) -> bool:
-        """Check if any brain provider is available"""
-        # Check if we have any configured providers
-        return bool(self._provider_configs)
-    
-    def clear_all_history(self):
-        """Clear conversation history for all providers"""
-        # Initialize all brains to clear their history
-        for provider_name in self._provider_configs.keys():
-            try:
-                provider_enum = BrainProvider(provider_name)
-                brain = self._get_or_create_brain(provider_enum)
-                if brain:
-                    brain.clear_history()
-            except ValueError:
-                pass
-        
-        logger.info("All brain provider histories cleared")
 
 # Convenience function for easy integration
 def create_ai_brain(config: Optional[Dict[str, Any]] = None) -> AIBrainManager:

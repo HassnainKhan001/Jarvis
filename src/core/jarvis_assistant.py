@@ -79,8 +79,13 @@ class EnhancedJarvisAssistant:
         )
         
         # Initialize context/memory system with multi-user support
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        data_dir = os.path.join(project_root, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        db_path = os.path.join(data_dir, "jarvis_memory.db")
         self.context = create_jarvis_context(
-            db_path="jarvis_memory.db",
+            db_path=db_path,
             max_session_history=20,
             default_user="user"  # Default user for multi-user system
         )

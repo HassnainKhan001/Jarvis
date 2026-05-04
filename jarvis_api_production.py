@@ -51,16 +51,22 @@ from commands.commands import JarvisCommands, create_ai_config
 from context.jarvis_context import create_jarvis_context
 from pushover_notifications import notify_new_user, notify_system_event
 
+# Ensure required directories exist
+project_root = os.path.dirname(os.path.abspath(__file__))
+logs_dir = os.path.join(project_root, 'logs')
+data_dir = os.path.join(project_root, 'data')
+os.makedirs(logs_dir, exist_ok=True)
+os.makedirs(data_dir, exist_ok=True)
+
 # Configure production logging
 handlers = [logging.StreamHandler()]
+log_file = os.path.join(logs_dir, 'api.log')
+
 try:
-    # Try to add file handler if directory exists and is writable
-    import os
-    os.makedirs('/var/log/jarvis', exist_ok=True)
-    handlers.append(logging.FileHandler('/var/log/jarvis/api.log'))
-except (OSError, PermissionError):
+    handlers.append(logging.FileHandler(log_file))
+except (OSError, PermissionError) as e:
     # Fall back to just console logging if file logging isn't available
-    print("Warning: Cannot write to /var/log/jarvis/api.log, using console logging only")
+    print(f"Warning: Cannot write to {log_file}, using console logging only. Error: {e}")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -245,7 +251,8 @@ async def initialize_jarvis():
         jarvis_tts = JarvisTTS(tts_engine="piper")
         
         # Initialize context/memory system
-        db_path = os.getenv('JARVIS_DB_PATH', '/var/lib/jarvis/jarvis_memory.db')
+        default_db_path = os.path.join(data_dir, 'jarvis_memory.db')
+        db_path = os.getenv('JARVIS_DB_PATH', default_db_path)
         jarvis_context = create_jarvis_context(
             db_path=db_path,
             max_session_history=50,  # Increased for production
@@ -398,14 +405,28 @@ async def get_ai_providers(
     if not jarvis_brain:
         return {}
     
+    # Use get_status() which handles lazy initialization and status checks
+    status_info = jarvis_brain.get_status()
+    provider_details = status_info.get("providers", {})
+    
     providers = {}
-    for provider, brain in jarvis_brain.brains.items():
-        providers[provider.value] = {
-            "name": brain.provider_name,
-            "healthy": brain.is_healthy(),
-            "is_primary": brain == jarvis_brain.primary_brain,
-            "is_fallback": brain == jarvis_brain.fallback_brain
+    for provider_name, details in provider_details.items():
+        # Map to the format expected by the API
+        providers[provider_name] = {
+            "name": provider_name.capitalize(),  # Fallback name
+            "healthy": details.get("healthy", False),
+            "is_primary": status_info.get("primary") == provider_name,
+            "is_fallback": status_info.get("fallback") == provider_name
         }
+        
+        # Try to get the actual display name from the brain if it exists
+        try:
+            from ai.ai_brain import BrainProvider
+            provider_enum = BrainProvider(provider_name)
+            if provider_enum in jarvis_brain.brains:
+                providers[provider_name]["name"] = jarvis_brain.brains[provider_enum].provider_name
+        except:
+            pass
     
     return providers
 

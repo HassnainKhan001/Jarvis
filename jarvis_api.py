@@ -172,6 +172,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+# Ensure required directories exist
+project_root = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(project_root, 'data')
+logs_dir = os.path.join(project_root, 'logs')
+os.makedirs(data_dir, exist_ok=True)
+os.makedirs(logs_dir, exist_ok=True)
+
 async def initialize_jarvis():
     """Initialize Jarvis components"""
     global jarvis_brain, jarvis_tts, jarvis_commands, jarvis_context
@@ -188,17 +195,13 @@ async def initialize_jarvis():
         
         jarvis_brain = AIBrainManager(ai_config)
         
-        # Initialize TTS with Piper neural voice
-        from utils.config_manager import get_config
-        config = get_config()
-        piper_model_path = config.get('tts.piper.model_path')
-        if piper_model_path and piper_model_path.startswith('~'):
-            piper_model_path = piper_model_path.replace('~', os.path.expanduser('~'))
-        jarvis_tts = JarvisTTS(tts_engine="piper", model_name=piper_model_path)
+        # Initialize TTS with pyttsx3 (no external model files required)
+        jarvis_tts = JarvisTTS(tts_engine="pyttsx3")
         
         # Initialize context/memory system - SHARED with voice assistant
+        db_path = os.path.join(data_dir, "jarvis_memory.db")
         jarvis_context = create_jarvis_context(
-            db_path="jarvis_memory.db",  # Same database as voice assistant
+            db_path=db_path,  # Same database as voice assistant
             max_session_history=20,
             default_user="user"  # Same default as voice assistant
         )
